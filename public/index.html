@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>NotebookLM RAG</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <header class="hero">
+      <div class="hero-copy">
+        <div class="badge">NotebookLM Questline</div>
+        <h1>NotebookLM RAG Playground</h1>
+        <p>
+          Turn any PDF or TXT into a searchable, answerable knowledge vault. Students unlock
+          badges as they explore, ask, and cite.
+        </p>
+        <div class="hero-actions">
+          <a class="cta" href="/app.html">Enter the Lab</a>
+          <span class="hint">Best with Qdrant running locally.</span>
+        </div>
+      </div>
+      <div class="hero-panel">
+        <div class="stat-card">
+          <div class="stat-label">Build</div>
+          <div class="stat-value">RAG</div>
+          <div class="stat-sub">Chunk → Embed → Retrieve</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Play</div>
+          <div class="stat-value">Quests</div>
+          <div class="stat-sub">Earn badges while learning</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Answer</div>
+          <div class="stat-value">Grounded</div>
+          <div class="stat-sub">No hallucinations</div>
+        </div>
+      </div>
+    </header>
+
+    <section class="quest-bar">
+      <div class="quest">
+        <div class="quest-title">Step 1: Bring your doc</div>
+        <div class="quest-progress">PDF/TXT upload</div>
+      </div>
+      <div class="quest">
+        <div class="quest-title">Step 2: Explore the answers</div>
+        <div class="quest-progress">Ask grounded questions</div>
+      </div>
+      <div class="quest">
+        <div class="quest-title">Step 3: Collect badges</div>
+        <div class="quest-progress">Cite sources to level up</div>
+      </div>
+    </section>
+
+    <main>
+      <section class="card">
+        <h2>What you can do</h2>
+        <ul class="feature-list">
+          <li>Upload PDFs or text notes.</li>
+          <li>Index into Qdrant with embeddings.</li>
+          <li>Ask questions and cite sources.</li>
+          <li>Track streaks, XP, and badges.</li>
+        </ul>
+      </section>
+
+      <section class="card">
+        <h2>Ready to play?</h2>
+        <p>Jump into the lab and start your first quest.</p>
+        <a class="cta" href="/app.html">Start the Interactive Lab</a>
+      </section>
+    </main>
+
+    <script>
+      document.querySelectorAll(".cta").forEach((cta) => {
+        cta.addEventListener("mouseenter", () => {
+          cta.classList.add("pulse");
+          setTimeout(() => cta.classList.remove("pulse"), 500);
+        });
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>NotebookLM RAG Lab</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&display=swap"
+      rel="stylesheet"
+    />
+  </head>
+  <body>
+    <header class="hero">
+      <div class="hero-copy">
+        <div class="badge">Interactive Lab</div>
+        <h1>Student RAG Lab</h1>
+        <p>Complete quests, build streaks, and unlock badges while you explore your document.</p>
+        <div class="hero-actions">
+          <a class="ghost" href="/">Back to Home</a>
+          <span class="hint">Tip: Index once, then ask away.</span>
+        </div>
+      </div>
+      <div class="hero-panel">
+        <div class="stat-card">
+          <div class="stat-label">Level</div>
+          <div class="stat-value" id="levelValue">1</div>
+          <div class="stat-sub" id="xpValue">0 / 100 XP</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Streak</div>
+          <div class="stat-value" id="streakValue">0</div>
+          <div class="stat-sub">Consecutive Q&A</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Artifacts</div>
+          <div class="stat-value" id="artifactValue">0</div>
+          <div class="stat-sub">Indexed files</div>
+        </div>
+      </div>
+    </header>
+
+    <section class="quest-bar">
+      <div class="quest">
+        <div class="quest-title">Quest 1: Load a document</div>
+        <div class="quest-progress" id="questIndex">0 / 1</div>
+      </div>
+      <div class="quest">
+        <div class="quest-title">Quest 2: Ask 3 questions</div>
+        <div class="quest-progress" id="questAsk">0 / 3</div>
+      </div>
+      <div class="quest">
+        <div class="quest-title">Quest 3: Cite sources</div>
+        <div class="quest-progress" id="questSource">0 / 1</div>
+      </div>
+    </section>
+
+    <main>
+      <section class="card">
+        <h2>1) Upload and Index</h2>
+        <div class="pill" id="filePill">No file selected</div>
+        <input id="docFile" type="file" accept=".pdf,.txt" />
+        <button id="indexBtn">Index Document</button>
+        <div class="meter" aria-hidden="true">
+          <div class="meter-fill" id="indexMeter"></div>
+        </div>
+        <div class="status" id="indexStatus">Awaiting document upload.</div>
+      </section>
+
+      <section class="card">
+        <h2>2) Ask a Question</h2>
+        <textarea id="questionInput" placeholder="Ask something about the document..."></textarea>
+        <button id="askBtn">Ask</button>
+        <div class="meter" aria-hidden="true">
+          <div class="meter-fill" id="askMeter"></div>
+        </div>
+        <div class="status" id="askStatus">Waiting for a question.</div>
+        <div class="answer" id="answerBox"></div>
+        <div class="history" id="historyBox"></div>
+      </section>
+    </main>
+
+    <div class="toast" id="toast">Achievement unlocked!</div>
+
+    <script>
+      const docFile = document.getElementById("docFile");
+      const indexBtn = document.getElementById("indexBtn");
+      const indexStatus = document.getElementById("indexStatus");
+      const indexMeter = document.getElementById("indexMeter");
+      const filePill = document.getElementById("filePill");
+      const questionInput = document.getElementById("questionInput");
+      const askBtn = document.getElementById("askBtn");
+      const askStatus = document.getElementById("askStatus");
+      const askMeter = document.getElementById("askMeter");
+      const answerBox = document.getElementById("answerBox");
+      const historyBox = document.getElementById("historyBox");
+      const levelValue = document.getElementById("levelValue");
+      const xpValue = document.getElementById("xpValue");
+      const streakValue = document.getElementById("streakValue");
+      const artifactValue = document.getElementById("artifactValue");
+      const questIndex = document.getElementById("questIndex");
+      const questAsk = document.getElementById("questAsk");
+      const questSource = document.getElementById("questSource");
+      const toast = document.getElementById("toast");
+
+      const defaultState = {
+        xp: 0,
+        level: 1,
+        streak: 0,
+        indexed: 0,
+        asked: 0,
+        sourced: 0,
+      };
+
+      function loadState() {
+        const raw = localStorage.getItem("ragQuest");
+        return raw ? JSON.parse(raw) : { ...defaultState };
+      }
+
+      function saveState(state) {
+        localStorage.setItem("ragQuest", JSON.stringify(state));
+      }
+
+      function showToast(message) {
+        toast.textContent = message;
+        toast.classList.add("show");
+        setTimeout(() => toast.classList.remove("show"), 2200);
+      }
+
+      function applyXP(state, amount) {
+        state.xp += amount;
+        while (state.xp >= 100) {
+          state.xp -= 100;
+          state.level += 1;
+          showToast("Level up! Welcome to Level " + state.level + ".");
+        }
+      }
+
+      function renderState(state) {
+        levelValue.textContent = state.level;
+        xpValue.textContent = `${state.xp} / 100 XP`;
+        streakValue.textContent = state.streak;
+        artifactValue.textContent = state.indexed;
+        questIndex.textContent = `${Math.min(state.indexed, 1)} / 1`;
+        questAsk.textContent = `${Math.min(state.asked, 3)} / 3`;
+        questSource.textContent = `${Math.min(state.sourced, 1)} / 1`;
+      }
+
+      let state = loadState();
+      renderState(state);
+
+      function setMeter(meter, active) {
+        meter.style.width = active ? "100%" : "0%";
+      }
+
+      function setStatus(el, message, tone) {
+        el.textContent = message;
+        el.dataset.tone = tone || "neutral";
+      }
+
+      function appendHistory(question, answer) {
+        const entry = document.createElement("div");
+        entry.className = "history-entry";
+        entry.innerHTML = `
+          <div class="history-q">${question}</div>
+          <div class="history-a">${answer}</div>
+        `;
+        historyBox.prepend(entry);
+      }
+
+      docFile.addEventListener("change", () => {
+        if (!docFile.files.length) {
+          filePill.textContent = "No file selected";
+          return;
+        }
+        filePill.textContent = docFile.files[0].name;
+      });
+
+      async function indexDocument() {
+        if (!docFile.files.length) {
+          setStatus(indexStatus, "Please choose a PDF or TXT file.", "warn");
+          return;
+        }
+
+        indexBtn.disabled = true;
+        setMeter(indexMeter, true);
+        setStatus(indexStatus, "Indexing...", "info");
+        const formData = new FormData();
+        formData.append("document", docFile.files[0]);
+
+        try {
+          const response = await fetch("/api/index", {
+            method: "POST",
+            body: formData,
+          });
+          const data = await response.json();
+          if (!response.ok) {
+            throw new Error(data.error || "Indexing failed");
+          }
+          setStatus(indexStatus, data.message || "Indexing complete.", "success");
+          if (!data.alreadyIndexed) {
+            state.indexed += 1;
+            applyXP(state, 40);
+            showToast("Artifact gained: New document indexed!");
+          }
+        } catch (error) {
+          setStatus(indexStatus, error.message, "error");
+        } finally {
+          indexBtn.disabled = false;
+          setMeter(indexMeter, false);
+          saveState(state);
+          renderState(state);
+        }
+      }
+
+      async function askQuestion() {
+        const question = questionInput.value.trim();
+        if (!question) {
+          setStatus(askStatus, "Enter a question first.", "warn");
+          return;
+        }
+
+        askBtn.disabled = true;
+        setMeter(askMeter, true);
+        setStatus(askStatus, "Thinking...", "info");
+        answerBox.textContent = "";
+
+        try {
+          const response = await fetch("/api/ask", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ question }),
+          });
+          const data = await response.json();
+          if (!response.ok) {
+            throw new Error(data.error || "Request failed");
+          }
+          setStatus(askStatus, "Answer ready.", "success");
+          const sources = (data.sources || [])
+            .map((source) => {
+              const page = source.page ? `p.${source.page}` : "p.?";
+              const fileName = source.fileName || "file";
+              return `${fileName} ${page} [Chunk ${source.chunk}]`;
+            })
+            .join(" | ");
+
+          answerBox.textContent = data.answer || "";
+          if (sources) {
+            answerBox.textContent += `\n\nSources: ${sources}`;
+            state.sourced = 1;
+          }
+          appendHistory(question, data.answer || "");
+          state.asked += 1;
+          state.streak += 1;
+          applyXP(state, 15);
+          if (state.asked === 3) {
+            showToast("Badge unlocked: Curious");
+          }
+        } catch (error) {
+          setStatus(askStatus, error.message, "error");
+          state.streak = 0;
+        } finally {
+          askBtn.disabled = false;
+          setMeter(askMeter, false);
+          saveState(state);
+          renderState(state);
+        }
+      }
+
+      indexBtn.addEventListener("click", indexDocument);
+      askBtn.addEventListener("click", askQuestion);
+    </script>
+  </body>
+</html>
