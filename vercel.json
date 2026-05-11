@@ -1,18 +1,6 @@
 {
-  "buildCommand": "npm install",
-  "outputDirectory": "public",
-  "env": {
-    "OPENROUTER_API_KEY": "@openrouter_api_key",
-    "OPENROUTER_BASE_URL": "https://openrouter.ai/api/v1",
-    "OPENROUTER_MODEL": "nvidia/nemotron-3-super-120b-a12b:free",
-    "OPENROUTER_EMBEDDING_MODEL": "text-embedding-3-large",
-    "RETRIEVAL_K": "4",
-    "SCORE_THRESHOLD": "0.2",
-    "QDRANT_URL": "@qdrant_url",
-    "QDRANT_COLLECTION": "notebookllm"
-  },
   "functions": {
-    "src/server.js": {
+    "api/**/*.js": {
       "runtime": "nodejs20.x",
       "memory": 3008,
       "maxDuration": 60

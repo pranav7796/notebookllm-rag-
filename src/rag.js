@@ -12,6 +12,7 @@ import { OpenAI } from "openai";
 
 const DEFAULT_QDRANT_URL = "http://localhost:6333";
 const DEFAULT_COLLECTION = "notebookllm";
+const DEFAULT_QDRANT_API_KEY = "";
 const DEFAULT_OPENAI_MODEL = "gpt-4.1-mini";
 const DEFAULT_OPENAI_EMBEDDING_MODEL = "text-embedding-3-large";
 const DEFAULT_OPENROUTER_URL = "https://openrouter.ai/api/v1";
@@ -28,6 +29,7 @@ export function getConfig() {
   return {
     qdrantUrl: getEnv("QDRANT_URL", DEFAULT_QDRANT_URL),
     collectionName: getEnv("QDRANT_COLLECTION", DEFAULT_COLLECTION),
+    qdrantApiKey: getEnv("QDRANT_API_KEY", DEFAULT_QDRANT_API_KEY),
     provider: getEnv("LLM_PROVIDER", ""),
     openaiApiKey: getEnv("OPENAI_API_KEY", ""),
     openaiBaseUrl: getEnv("OPENAI_BASE_URL", ""),
@@ -46,6 +48,13 @@ export function getConfig() {
     retrievalK: Number(getEnv("RETRIEVAL_K", DEFAULT_RETRIEVAL_K)),
     scoreThreshold: Number(getEnv("SCORE_THRESHOLD", DEFAULT_SCORE_THRESHOLD)),
   };
+}
+
+function buildQdrantClient(config) {
+  return new QdrantClient({
+    url: config.qdrantUrl,
+    apiKey: config.qdrantApiKey || undefined,
+  });
 }
 
 function resolveProvider(config) {
@@ -177,8 +186,9 @@ export async function chunkDocuments(documents, metadata) {
   }));
 }
 
-async function isAlreadyIndexed({ qdrantUrl, collectionName }, fileHash) {
-  const client = new QdrantClient({ url: qdrantUrl });
+async function isAlreadyIndexed(config, fileHash) {
+  const client = buildQdrantClient(config);
+  const { collectionName } = config;
   try {
     const collections = await client.getCollections();
     const exists = collections.collections?.some(
@@ -206,8 +216,9 @@ async function isAlreadyIndexed({ qdrantUrl, collectionName }, fileHash) {
   }
 }
 
-async function collectionExists({ qdrantUrl, collectionName }) {
-  const client = new QdrantClient({ url: qdrantUrl });
+async function collectionExists(config) {
+  const client = buildQdrantClient(config);
+  const { collectionName } = config;
   try {
     const collections = await client.getCollections();
     return collections.collections?.some(
@@ -236,9 +247,10 @@ export async function indexDocument(filePath, originalName, mimeType) {
   });
 
   const embeddings = buildEmbeddings(config);
+  const client = buildQdrantClient(config);
 
   await QdrantVectorStore.fromDocuments(chunks, embeddings, {
-    url: config.qdrantUrl,
+    client,
     collectionName: config.collectionName,
   });
 
@@ -261,8 +273,9 @@ export async function answerQuestion(question) {
   }
 
   const embeddings = buildEmbeddings(config);
+  const client = buildQdrantClient(config);
   const vectorStore = await QdrantVectorStore.fromExistingCollection(embeddings, {
-    url: config.qdrantUrl,
+    client,
     collectionName: config.collectionName,
   });
 
@@ -291,7 +304,7 @@ export async function answerQuestion(question) {
     })
     .join("\n\n");
 
-  const { client, model } = buildChatClient(config);
+  const { client: chatClient, model } = buildChatClient(config);
 
   const systemPrompt = [
     "You are a strict assistant for question answering over a document.",
@@ -302,7 +315,7 @@ export async function answerQuestion(question) {
     context,
   ].join("\n");
 
-  const response = await client.chat.completions.create({
+  const response = await chatClient.chat.completions.create({
     model,
     messages: [
       { role: "system", content: systemPrompt },
