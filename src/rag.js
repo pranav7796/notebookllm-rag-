@@ -57,6 +57,21 @@ function buildQdrantClient(config) {
   });
 }
 
+async function ensureFileHashIndex(client, collectionName) {
+  try {
+    await client.createPayloadIndex(collectionName, {
+      field_name: "fileHash",
+      field_schema: "keyword",
+    });
+  } catch (error) {
+    const message = String(error?.message || "").toLowerCase();
+    if (message.includes("already exists") || message.includes("conflict")) {
+      return;
+    }
+    throw error;
+  }
+}
+
 function resolveProvider(config) {
   if (config.provider) {
     return config.provider.toLowerCase();
@@ -198,6 +213,8 @@ async function isAlreadyIndexed(config, fileHash) {
     if (!exists) {
       return false;
     }
+
+    await ensureFileHashIndex(client, collectionName);
 
     const result = await client.scroll(collectionName, {
       limit: 1,
